@@ -101,11 +101,19 @@
   /* ---------------- map ---------------- */
   var SVGNS = 'http://www.w3.org/2000/svg';
   var mapEls = {};
+  // Asset coordinates in data.js are box centres. Sizes are in viewBox units,
+  // chosen so labels render at ~11–13px on screen.
   function layout() {
     return window.innerWidth < 700
-      ? { vb: '0 0 400 720', key: 'm', w: 150, h: 40, fs: 9 }
-      : { vb: '0 0 1000 560', key: 'd', w: 150, h: 54, fs: 10 };
+      ? { vb: '0 0 400 720', key: 'm', w: 124, h: 52, fs: 14.5, sub: 13 }
+      : { vb: '-30 0 1060 560', key: 'd', w: 172, h: 64, fs: 18, sub: 15 };
   }
+  var SHORT = {
+    attacker: 'Threat actor', mail: 'Email gateway', vpn: 'VPN gateway', api: 'Payment API',
+    support: 'Support PCs', finance: 'Finance PCs', dev: 'Engineering PCs', app: 'Wallet backend',
+    dc: 'Domain controller', txdb: 'Transaction DB', vault: 'Card vault', 'switch': 'Bank link',
+    backup: 'Backup server'
+  };
   function el(tag, attrs) {
     var e = document.createElementNS(SVGNS, tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -127,8 +135,7 @@
     // links
     D.LINKS.forEach(function (lk) {
       var u = pos[lk[0]], v = pos[lk[1]]; if (!u || !v) return;
-      var ux = u[0] + L.w / 2, uy = u[1] + L.h / 2, vx = v[0] + L.w / 2, vy = v[1] + L.h / 2;
-      var line = el('path', { d: 'M' + ux + ',' + uy + ' L' + vx + ',' + vy, class: 'edge-line' + (lk[2] ? ' legit' : '') });
+      var line = el('path', { d: 'M' + u[0] + ',' + u[1] + ' L' + v[0] + ',' + v[1], class: 'edge-line' + (lk[2] ? ' legit' : '') });
       line.setAttribute('data-u', lk[0]); line.setAttribute('data-v', lk[1]);
       svg.appendChild(line);
     });
@@ -139,17 +146,22 @@
       var g = el('g', { transform: 'translate(' + p[0] + ',' + p[1] + ')' });
       var isExt = a.kind === 'external';
       var rect = el('rect', {
-        class: 'asset-rect', x: 0, y: 0, width: L.w, height: L.h, rx: isExt ? 20 : 3,
+        class: 'asset-rect', x: -L.w / 2, y: -L.h / 2, width: L.w, height: L.h, rx: isExt ? L.h / 2 : 10,
         fill: a.kind === 'external' ? COLORS.external : (a.kind === 'edge' ? COLORS.edge : COLORS.secure),
-        stroke: a.critical ? '#15233b' : '#c9bfa6', 'stroke-width': a.critical ? 1.6 : 1
+        stroke: a.critical ? '#15233b' : '#c9bfa6', 'stroke-width': a.critical ? 2 : 1.2
       });
       g.appendChild(rect);
-      var nm = el('text', { x: 8, y: 19, class: 'asset-name', 'font-size': L.fs });
-      nm.textContent = a.name; g.appendChild(nm);
-      var sub = el('text', { x: 8, y: L.h - 8, class: 'asset-sub' });
+      var nm = el('text', { x: 0, y: -L.h * 0.06, 'text-anchor': 'middle', class: 'asset-name', 'font-size': L.fs });
+      nm.textContent = SHORT[a.id] || a.name; g.appendChild(nm);
+      var sub = el('text', { x: 0, y: L.h * 0.3, 'text-anchor': 'middle', class: 'asset-sub', 'font-size': L.sub });
       sub.textContent = a.critical ? 'critical service' : (a.records ? a.records.toLocaleString() + ' records' : (a.count ? a.count + ' hosts' : D.ZONES[a.zone] ? D.ZONES[a.zone].label : ''));
       g.appendChild(sub);
       svg.appendChild(g);
+      // keep long names inside their box on small layouts
+      try {
+        var maxW = L.w - 12;
+        if (nm.getComputedTextLength() > maxW) { nm.setAttribute('textLength', maxW); nm.setAttribute('lengthAdjust', 'spacingAndGlyphs'); }
+      } catch (e) {}
       mapEls[a.id] = { rect: rect, g: g };
     });
     $('company-hint').textContent = D.COMPANY.employees + ' staff · ' + D.COMPANY.customers.toLocaleString() + ' customers · $' + (D.COMPANY.dailyVolumeUSD / 1e6) + 'M/day';
@@ -157,12 +169,13 @@
   function paint(id, stateName) {
     var m = mapEls[id]; if (!m) return;
     m.rect.setAttribute('fill', COLORS[stateName] || COLORS.secure);
+    m.g.setAttribute('data-state', stateName || 'secure');   // CSS switches label colour for contrast
     if (stateName === 'impacted' || stateName === 'exposed') m.rect.setAttribute('stroke', '#15233b');
   }
   function resetMap() {
     D.ASSETS.forEach(function (a) {
       var base = a.kind === 'external' ? 'external' : (a.kind === 'edge' ? 'edge' : 'secure');
-      if (mapEls[a.id]) mapEls[a.id].rect.setAttribute('fill', COLORS[base]);
+      if (mapEls[a.id]) { mapEls[a.id].rect.setAttribute('fill', COLORS[base]); mapEls[a.id].g.removeAttribute('data-state'); }
     });
     // mark protected assets (those shielded by selected controls) with a green hint
     if (state.selected.has('novpn')) paint('vpn', 'protected');

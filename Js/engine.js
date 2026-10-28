@@ -189,7 +189,7 @@
         const u = frontier[f], nbrs = adj[u];
         for (let n = 0; n < nbrs.length; n++) {
           const v = nbrs[n].to;
-          if (exposed.has(v) || ctx.removed.has(v)) continue;
+          if (exposed.has(v) || ctx.removed.has(v) || byId[v].kind === 'external') continue; // the threat actor is not a NabuPay asset
           const target = byId[v];
           const sameZone = target.zone === byId[u].zone;
           let p;
