@@ -2,127 +2,214 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
 <title>NabuPay Breach Simulator</title>
-<meta name="description" content="An interactive cyber risk simulator: watch an attack spread across a fictional payment company, apply security controls, and see expected annual loss, ROSI and risk fall — every number traced to a published source.">
+<meta name="description" content="Quantitative cyber-risk simulator for a fictional Iraqi payment company: FAIR-style Monte Carlo, loss exceedance curve, risk appetite, sensitivity analysis and the efficient frontier of 4,096 control portfolios. Every input traced to a source.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,700;0,800;1,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 
-<header class="masthead">
-  <div class="wrap">
-    <div class="seal">N</div>
-    <div class="brand">
-      <h1>NabuPay</h1>
-      <div class="sub">Breach Simulator &middot; Cyber Risk &amp; Incident Response</div>
-    </div>
-    <div class="spacer"></div>
-    <div class="denomination">
-      <span class="k">Annual expected loss</span>
-      <span class="v danger" id="mast-ale">—</span>
-    </div>
-    <div class="denomination" style="margin-left:22px">
-      <span class="k">Risk reduced</span>
-      <span class="v safe" id="mast-red">—</span>
-    </div>
-  </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#2347c9"/><path d="M8 10.5 16 7l8 3.5L16 14Z" fill="#d9a93a"/><path d="M16 14v12" stroke="#d9a93a" stroke-width="2.6" stroke-linecap="round"/><path d="M10 18.5 16 22l6-3.5" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/></symbol>
+    <symbol id="i-sim" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M11 7 6.2 16M13 7l4.8 9M7.2 18h9.6"/></g></symbol>
+    <symbol id="i-def" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 20 6v6c0 4.4-3.3 8.2-8 9-4.7-.8-8-4.6-8-9V6Z"/><path d="m8.6 12 2.4 2.4 4.6-4.8"/></g></symbol>
+    <symbol id="i-ana" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M6 6c3 0 5 1.5 7 5s4 6 8 6"/></g></symbol>
+    <symbol id="i-met" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5Z"/><path d="M8.5 10h7M8.5 14h7M8.5 18h4"/></g></symbol>
+    <symbol id="i-rep" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3"/></g></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.6v12.8a1 1 0 0 0 1.5.9l10.2-6.4a1 1 0 0 0 0-1.8L9.5 4.7A1 1 0 0 0 8 5.6Z" fill="currentColor"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4v5h5"/></g></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.7 2.7L16.2 9"/></g></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2.5 20h19Z"/><path d="M12 10v4.5M12 17.5v.01"/></g></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <div class="brand"><svg class="mark"><use href="#i-mark"/></svg><div><div class="brand-name">NabuPay</div><div class="brand-sub">Breach Simulator</div></div></div>
+  <button class="top-ale" data-go="analyze" aria-label="Expected annual loss, open analysis"><span class="lbl">Expected loss</span><span class="val" id="top-ale">—</span></button>
 </header>
-<div class="guilloche"></div>
 
-<main class="stage">
-  <div class="grid">
+<aside class="sidebar" aria-label="Navigation">
+  <div class="brand"><svg class="mark"><use href="#i-mark"/></svg><div><div class="brand-name">NabuPay</div><div class="brand-sub">Breach Simulator</div></div></div>
+  <nav class="side-nav">
+    <button class="nav-item on" data-go="simulate"><svg><use href="#i-sim"/></svg>Simulate</button>
+    <button class="nav-item" data-go="defend"><svg><use href="#i-def"/></svg>Defend</button>
+    <button class="nav-item" data-go="analyze"><svg><use href="#i-ana"/></svg>Analyze</button>
+    <button class="nav-item" data-go="method"><svg><use href="#i-met"/></svg>Method</button>
+    <button class="nav-item" data-go="report"><svg><use href="#i-rep"/></svg>Report</button>
+  </nav>
+  <div class="side-summary" id="side-summary"></div>
+</aside>
 
-    <!-- LEFT: controls -->
-    <section class="panel" aria-label="Security controls">
-      <h2>Security controls <span class="hint">pick a portfolio</span></h2>
-      <div class="body">
-        <div class="modes" id="modes">
-          <button data-mode="open" class="on">Free mode</button>
-          <button data-mode="budget">Budget mode</button>
-        </div>
-        <div class="budgetbar" id="budgetbar" hidden>
-          <div class="track"><div class="fill" id="budgetfill"></div></div>
-          <div class="lbl"><span id="budgetspent">$0</span><span id="budgetcap"></span></div>
-        </div>
-        <div id="controls"></div>
-      </div>
-    </section>
+<main class="main" id="main">
 
-    <!-- CENTER: map + run -->
-    <section class="panel" aria-label="Network and attack">
-      <h2>NabuPay network <span class="hint" id="company-hint"></span></h2>
-      <div class="body">
-        <div class="scenarios" id="scenarios"></div>
-        <div class="runbar">
-          <button class="btn seal" id="runbtn">Launch attack</button>
-          <button class="btn ghost" id="resetbtn">Reset</button>
-          <span class="muted" id="runstatus"></span>
-        </div>
-        <div id="mapwrap"><svg class="mapcanvas" id="map" viewBox="0 0 1000 560" role="img" aria-label="NabuPay network map"></svg></div>
-      </div>
-      <div class="legendrow">
-        <span class="k"><span class="swatch" style="background:#f4f1e8;border-color:#c9bfa6"></span> Secure</span>
-        <span class="k"><span class="swatch" style="background:#b5771d"></span> Exposed</span>
-        <span class="k"><span class="swatch" style="background:#9a2f2a"></span> Impacted</span>
-        <span class="k"><span class="swatch" style="background:#2f6f8f"></span> Contained</span>
-        <span class="k"><span class="swatch" style="background:#1f6f5c"></span> Protected</span>
-      </div>
-      <div class="timeline">
-        <div class="phase-track" id="phasetrack"></div>
-        <div class="log" id="log"><div class="muted" style="padding:6px 0">Choose a scenario and launch the attack to see the incident unfold.</div></div>
-      </div>
-    </section>
-
-    <!-- RIGHT: metrics -->
-    <section class="panel" aria-label="Risk metrics">
-      <h2>Risk ledger <span class="hint">Monte Carlo, 1,200 runs</span></h2>
-      <div class="body">
-        <div class="counters" id="counters"></div>
-      </div>
-    </section>
-  </div>
-
-  <!-- second row: heat map + report + sources -->
-  <div class="grid" style="margin-top:16px; grid-template-columns: 1fr 1fr;">
-    <section class="panel">
-      <h2>Risk heat map <span class="hint">inherent → residual</span></h2>
-      <div class="body" id="heatwrap"></div>
-    </section>
-    <section class="panel">
-      <h2>Incident report</h2>
-      <div class="body">
-        <p class="muted">Generate a one-page risk &amp; incident report for the current control portfolio — risk register, treatment, cost-benefit and MITRE ATT&amp;CK mapping, with sources.</p>
-        <div class="rpt-actions">
-          <button class="btn" id="reportbtn">Open report</button>
-          <button class="btn ghost" id="printbtn">Print / save PDF</button>
-        </div>
-        <div id="leaderboard" style="margin-top:16px"></div>
-      </div>
-    </section>
-  </div>
-
-  <div class="grid" style="margin-top:16px; grid-template-columns: 1fr;">
-    <section class="panel">
-      <h2>Sources <span class="hint">every number is traceable</span></h2>
-      <div class="body"><ol class="src" id="sources"></ol></div>
-    </section>
-  </div>
-
-  <div class="foot">
-    <div class="ethics">
-      This is an educational risk-modelling simulation for the Risk Management &amp; Incident Response module.
-      NabuPay is fictional. All figures are modelled from the published sources listed above; the simulator
-      contains no attack tooling and performs no real network activity.
+  <!-- SIMULATE -->
+  <section class="page active" data-page="simulate" aria-labelledby="h-sim">
+    <div class="page-head">
+      <h1 id="h-sim">Incident simulation</h1>
+      <p>Run one incident against NabuPay with your current defences and see how far it spreads, when it is contained and what it costs.</p>
     </div>
-    <div style="margin-top:10px">NabuPay Breach Simulator — Hussein Alaa Jaafar, Al-Shaab University, 2026</div>
-  </div>
+    <div class="seg scn-seg" id="scenarios" role="radiogroup" aria-label="Scenario"></div>
+    <p class="scn-desc" id="scn-desc"></p>
+
+    <div class="panel map-panel">
+      <div class="map-wrap" id="map-wrap">
+        <div class="map-hud">
+          <div class="hud-box"><span>Elapsed</span><b id="hud-clock">0 h</b></div>
+          <div class="hud-phase" id="hud-phase" data-p="ready">Ready</div>
+          <div class="hud-box hud-loss"><span>Incident loss</span><b id="hud-loss">$0</b></div>
+        </div>
+        <svg class="map" id="map" role="img" aria-label="NabuPay network map"></svg>
+        <div class="map-sweep" id="map-sweep"></div>
+      </div>
+      <div class="stepper" id="stepper" aria-label="Incident response lifecycle"></div>
+      <div class="map-legend">
+        <span><i class="sw secure"></i>Secure</span><span><i class="sw exposed"></i>Exposed</span><span><i class="sw impacted"></i>Impacted</span><span><i class="sw contained"></i>Contained</span><span><i class="sw protected"></i>Protected</span>
+      </div>
+    </div>
+
+    <div class="run-row">
+      <button class="btn btn-primary" id="run"><svg><use href="#i-play"/></svg><span>Run simulation</span></button>
+      <button class="btn btn-secondary btn-icon" id="reset" aria-label="Reset the network"><svg><use href="#i-reset"/></svg></button>
+      <p class="run-meta" id="run-meta"></p>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="section">
+      <div class="section-head"><h2>Incident log</h2><p class="section-sub">Times are hours since the first event</p></div>
+      <ol class="timeline" id="timeline"></ol>
+      <div class="empty" id="timeline-empty">Events appear here as the incident unfolds.</div>
+    </div>
+  </section>
+
+  <!-- DEFEND -->
+  <section class="page" data-page="defend" aria-labelledby="h-def">
+    <div class="page-head">
+      <h1 id="h-def">Choose your defences</h1>
+      <p>Each control costs money every year and removes part of the expected loss. The goal is the lowest total cost of risk: spend plus the loss that remains.</p>
+    </div>
+    <div class="impact-bar" id="impact-bar"></div>
+    <div class="seg" id="modes" role="radiogroup" aria-label="Budget mode">
+      <button data-mode="open" class="on">Free spending</button>
+      <button data-mode="budget">Budget $120K</button>
+    </div>
+    <div class="budget-meter" id="budget-meter" hidden></div>
+    <div id="suggest"></div>
+    <div id="controls"></div>
+  </section>
+
+  <!-- ANALYZE -->
+  <section class="page" data-page="analyze" aria-labelledby="h-ana">
+    <div class="page-head">
+      <h1 id="h-ana">Risk analysis</h1>
+      <p>Quantitative results for your current defences: 2,000 simulated years with uncertain inputs, and all 4,096 possible control portfolios.</p>
+    </div>
+    <div class="ledger" id="ledger"></div>
+
+    <div class="section">
+      <div class="section-head"><h2>Loss exceedance curve</h2><p class="section-sub">Chance of losing more than a given amount in one year</p></div>
+      <div class="panel panel-pad">
+        <div class="chart" id="lec"></div>
+        <div class="chart-legend"><span><i class="lg-line dash" style="border-color:var(--inherent)"></i>Inherent risk (no controls)</span><span><i class="lg-line" style="border-color:var(--brand)"></i>Your defences</span><span><i class="lg-line" style="border-color:var(--r-crit);border-top-width:2px"></i>Risk appetite</span></div>
+        <p class="readout" id="lec-readout">Move across the chart to read exact values.</p>
+        <div class="appetite">
+          <div class="appetite-row"><label for="appetite">Risk appetite</label><output id="appetite-out" for="appetite"></output></div>
+          <input type="range" id="appetite" min="0" max="100" step="1" aria-describedby="appetite-help">
+          <p class="small muted" id="appetite-help">NabuPay accepts at most a 1-in-20 chance (5%) of losing more than this amount in a year.</p>
+          <div id="appetite-status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Efficient frontier</h2><p class="section-sub">Every combination of the 12 controls</p></div>
+      <div class="panel panel-pad">
+        <div class="chart" id="frontier"></div>
+        <div class="chart-legend"><span><i class="lg-dot" style="background:#c3cad6"></i>Portfolio</span><span><i class="lg-line" style="border-color:var(--brand)"></i>Efficient frontier</span><span><i class="lg-dot" style="background:var(--gold)"></i>Lowest total cost of risk</span><span><i class="lg-dot" style="background:var(--ink);box-shadow:0 0 0 3px #c7d2fe"></i>You</span></div>
+        <div class="opt-box" id="opt-box"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>What drives the result</h2><p class="section-sub">Expected annual loss when each input moves from its minimum to its maximum</p></div>
+      <div class="panel panel-pad"><div class="chart" id="tornado"></div>
+        <p class="section-note" id="tornado-note"></p></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Scenario breakdown</h2><p class="section-sub">FAIR factors, inherent → with your defences</p></div>
+      <div class="fair-cards" id="fair"></div>
+    </div>
+
+    <div class="grid-2 section">
+      <div>
+        <div class="section-head"><h2>Risk matrix</h2><p class="section-sub">NIST SP 800-30 scales</p></div>
+        <div class="panel panel-pad"><div id="matrix"></div></div>
+      </div>
+      <div>
+        <div class="section-head"><h2>Business impact</h2><p class="section-sub">Recovery time vs. maximum tolerable downtime</p></div>
+        <div class="panel panel-pad" id="bia"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Model calibration</h2><p class="section-sub">Simulated loss per incident vs. published figures</p></div>
+      <div class="panel panel-pad" id="calib"></div>
+    </div>
+  </section>
+
+  <!-- METHOD -->
+  <section class="page" data-page="method" aria-labelledby="h-met">
+    <div class="page-head">
+      <h1 id="h-met">Methodology</h1>
+      <p>How every number is produced, which inputs come from published data and which are stated assumptions, and where the model stops.</p>
+    </div>
+    <div id="method"></div>
+  </section>
+
+  <!-- REPORT -->
+  <section class="page" data-page="report" aria-labelledby="h-rep">
+    <div class="page-head">
+      <h1 id="h-rep">Report &amp; leaderboard</h1>
+      <p>Export your analysis as a printable report, and compare your score with others on this device.</p>
+    </div>
+    <div class="panel panel-pad">
+      <h2 style="font-size:17px">Risk &amp; incident report</h2>
+      <p class="small muted" style="margin-top:4px">Executive summary, loss distribution, risk register, treatment plan, sensitivity, business impact and sources for your current defences.</p>
+      <div style="margin-top:14px"><button class="btn btn-primary" id="open-report">Open report</button></div>
+    </div>
+    <div class="section">
+      <div class="section-head"><h2>Leaderboard</h2><p class="section-sub">Highest score first; ties go to the cheaper defence</p></div>
+      <div class="panel panel-pad" id="leaderboard"></div>
+    </div>
+    <p class="about">Educational risk model for the Risk Management &amp; Incident Response module, Al-Shaab University. NabuPay is a fictional company. The simulator models likelihood, impact and response only; it contains no attack tooling and makes no network connections beyond loading fonts.<br>Hussein Alaa Jaafar, 2026.</p>
+  </section>
 </main>
+
+<nav class="tabbar" aria-label="Sections">
+  <button class="tab on" data-go="simulate"><svg><use href="#i-sim"/></svg><span>Simulate</span></button>
+  <button class="tab" data-go="defend"><svg><use href="#i-def"/></svg><span>Defend</span></button>
+  <button class="tab" data-go="analyze"><svg><use href="#i-ana"/></svg><span>Analyze</span></button>
+  <button class="tab" data-go="method"><svg><use href="#i-met"/></svg><span>Method</span></button>
+  <button class="tab" data-go="report"><svg><use href="#i-rep"/></svg><span>Report</span></button>
+</nav>
+
+<div class="report-view" id="report-view" hidden>
+  <div class="rv-bar"><button class="btn btn-secondary btn-sm" id="close-report">Close</button><button class="btn btn-primary btn-sm" id="print-report">Print or save as PDF</button></div>
+  <article class="rv-doc" id="rv-doc"></article>
+</div>
 
 <script src="Js/data.js"></script>
 <script src="Js/engine.js"></script>
-<script src="Js/ui.js"></script>
+<script src="Js/frontier.js"></script>
+<script src="Js/charts.js"></script>
+<script src="Js/app.js"></script>
+<script src="Js/sim.js"></script>
 </body>
 </html>

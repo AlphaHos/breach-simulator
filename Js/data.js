@@ -66,6 +66,26 @@
       title: 'PCI Security Standards Council — PCI DSS v4.0.1',
       url: 'https://www.pcisecuritystandards.org/',
       note: 'Basis for tokenisation and card-data segmentation.'
+    },
+    nist80030: {
+      title: 'NIST SP 800-30 Rev. 1 — Guide for Conducting Risk Assessments',
+      url: 'https://csrc.nist.gov/pubs/sp/800/30/r1/final',
+      note: 'Risk = likelihood × impact; likelihood/impact scales used for the heat map.'
+    },
+    fair: {
+      title: 'The Open Group — Risk Taxonomy (O-RT) Standard, v3.0.1 (FAIR)',
+      url: 'https://publications.opengroup.org/c20b',
+      note: 'Loss event frequency = threat event frequency × vulnerability; risk = LEF × loss magnitude. Basis of the quantitative model.'
+    },
+    vose: {
+      title: 'Vose, D. — Risk Analysis: A Quantitative Guide, 3rd ed. (Wiley, 2008)',
+      url: 'https://www.wiley.com/en-us/Risk+Analysis%3A+A+Quantitative+Guide%2C+3rd+Edition-p-9780470512845',
+      note: 'PERT distribution for expert three-point estimates (minimum, most likely, maximum).'
+    },
+    iso22301: {
+      title: 'ISO 22301:2019 — Business continuity management systems',
+      url: 'https://www.iso.org/standard/75106.html',
+      note: 'Business impact analysis: maximum tolerable downtime (MTD) and recovery time objective (RTO).'
     }
   };
 
@@ -79,8 +99,10 @@
     dailyVolumeUSD: 5000000,
     // Full payment outage cost per hour. Built bottom-up because ITIC's
     // >$300K/hour figure describes enterprises much larger than NabuPay.
-    outageCostPerHour: 22000,
-    outageCostWhy: 'Lost fees (1.2% × $5M/day ≈ $2.5K/h) + merchant SLA credits (~$6K/h) + customer churn and reputation (~$12K/h) + support overtime (~$1.5K/h). Assumption, scaled down from ITIC 2024.'
+    outageCostPerHour: 12000,
+    outageCostRange: [6000, 12000, 25000],
+    annualRevenueUSD: 21900000,   // 1.2% fee × $5M/day × 365
+    outageCostWhy: 'Lost fees (1.2% × $5M/day ≈ $2.5K/h) + merchant SLA credits (~$3K/h) + customer churn and reputation (~$5.5K/h) + support overtime (~$1K/h). Bottom-up assumption; ITIC 2024 reports >$300K/h for much larger enterprises.'
   };
 
   const ZONES = {
@@ -276,13 +298,51 @@
     }
   ];
 
+  /*
+   * Uncertainty. Every uncertain input is a three-point estimate
+   * [minimum, most likely, maximum], sampled with a PERT distribution
+   * (Vose 2008). Ranges are wider where the input is an assumption and
+   * narrower where it comes from a published figure.
+   */
+  const ATTACK_TEF_RANGE = {          // attempts per year
+    ransomware: [0.3, 0.6, 1.0],
+    intrusion: [0.4, 0.8, 1.4],
+    bec: [1.0, 2.0, 4.0]
+  };
+  // Realised effectiveness of each control relative to its stated effect.
+  // 1 = works exactly as the evidence says; 0.6 = delivers 60% of the reduction.
+  const CONTROL_EFF_RANGE = {
+    mfa: [0.85, 1, 1],          // sourced (Microsoft 2023); gaps in coverage
+    training: [0.6, 0.9, 1],    // sourced (KnowBe4) but needs 12 months
+    emailsec: [0.5, 1, 1.15],   // assumption
+    edr: [0.5, 1, 1.2],         // assumption
+    patch: [0.6, 0.9, 1],       // sourced (DBIR) but patch lag varies
+    segment: [0.7, 1, 1.1],     // design control, depends on rule hygiene
+    backup: [0.8, 1, 1],
+    mdr: [0.6, 1, 1.1],
+    token: [0.9, 1, 1],
+    fraud: [0.5, 1, 1.15],      // assumption
+    insurance: [1, 1, 1],       // contractual terms
+    novpn: [1, 1, 1]            // structural removal
+  };
+  // Business impact analysis: maximum tolerable downtime per critical service (assumption,
+  // set by NabuPay's management in the BIA workshop per ISO 22301).
+  const BIA_MTD_HOURS = { api: 4, app: 8, txdb: 8, vault: 12, 'switch': 12, dc: 24 };
+
   const MODEL = {
     roundHours: 6,
-    lateralBase: 0.28,            // per edge per round, endpoint to endpoint
-    lateralToServer: 0.16,        // needs credential dumping first
-    lateralFromDC: 0.7,           // domain admin pushes payload via GPO (T1484.001)
+    // Spread of exposure between connected assets, per 6-hour round (assumption).
+    lateralBase: 0.28,            // workstation to workstation
+    lateralToServer: 0.16,        // workstation to server
+    lateralFromDC: 0.7,           // from a compromised identity server (directory-wide reach)
+    spreadScaleRange: [0.7, 1, 1.3],
     detectBase: 0.01,             // per round with no tooling (someone notices)
+    detectBaseRange: [0.005, 0.01, 0.02],
     containRoundsDefault: 3,
+    // Sophos (2025): data was also stolen in 31% of financial-services
+    // attacks where data was encrypted.
+    ransomExfilProb: 0.31,
+    ransomExfilSrc: 'sophosFin2025',
     restoreHoursBackup: 72,       // backups exist but are untested
     restoreHoursNoBackup: 168,    // rebuild from scratch, about one week (Sophos modal)
     // Data-breach cost per record. IBM's ~$192/record is an average for
@@ -291,13 +351,22 @@
     // a reduced marginal rate beyond, so a full-database breach lands near
     // IBM's financial-sector average instead of an unrealistic linear tower.
     recordCostHigh: 192,
-    recordCostLow: 25,
+    recordCostHighRange: [150, 192, 240],
+    recordCostLow: 10,
+    recordCostLowRange: [5, 10, 25],
     recordTierBreak: 5000,
     recordCostSrc: 'ibm2026rec',
     breachFixed: 60000,           // notification, legal, regulator engagement
-    runs: 1200,                   // Monte Carlo runs per scenario
-    budget: 120000
+    years: 2000,                  // simulated years per portfolio (uncertainty Monte Carlo)
+    frontierRuns: 300,            // incidents per scenario for the portfolio frontier
+    budget: 120000,
+    appetiteDefault: 1000000,     // ≈ 5% of annual revenue
+    appetiteTolerance: 0.05       // "1 year in 20"
   };
+
+  ATTACKS.forEach(function (a) { a.tefRange = ATTACK_TEF_RANGE[a.id]; });
+  CONTROLS.forEach(function (c) { c.effRange = CONTROL_EFF_RANGE[c.id] || [1, 1, 1]; });
+  ASSETS.forEach(function (a) { if (BIA_MTD_HOURS[a.id]) a.mtd = BIA_MTD_HOURS[a.id]; });
 
   const TECHNIQUES = {
     'T1566.001': 'Phishing: spear-phishing attachment',
@@ -305,15 +374,7 @@
     'T1133': 'External remote services',
     'T1190': 'Exploit public-facing application',
     'T1110.003': 'Brute force: password spraying',
-    'T1204.002': 'User execution: malicious file',
-    'T1003': 'OS credential dumping',
-    'T1021.002': 'Remote services: SMB / admin shares',
-    'T1484.001': 'Group policy modification',
     'T1486': 'Data encrypted for impact',
-    'T1490': 'Inhibit system recovery',
-    'T1041': 'Exfiltration over C2 channel',
-    'T1557': 'Adversary-in-the-middle',
-    'T1114.003': 'Email forwarding rule',
     'T1657': 'Financial theft'
   };
 
